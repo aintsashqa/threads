@@ -28,12 +28,14 @@ export class ThreadService {
 	}
 
 	async findAll(): Promise<Thread[]> {
-		return this.threadsRepository.find({ where: { parent: IsNull() }, relations: { children: true } });
+		return this.threadsRepository.find({ where: { parentId: IsNull() }, relations: { children: true } });
 	}
 
 	async findOneById(id: number): Promise<Thread> {
 		const thread = await this.threadsRepository.findOne({ where: { id }, relations: { children: true } });
-		if (!thread) throw new NotFoundException();
+		if (!thread) {
+			throw new NotFoundException();
+		}
 
 		return thread;
 	}
