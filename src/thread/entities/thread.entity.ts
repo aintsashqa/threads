@@ -1,9 +1,17 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Exclude, Expose } from "class-transformer";
-import { Column, Entity, PrimaryGeneratedColumn, Tree, TreeChildren, TreeParent } from "typeorm";
+import {
+	Column,
+	CreateDateColumn,
+	DeleteDateColumn,
+	Entity,
+	JoinColumn,
+	ManyToOne,
+	OneToMany,
+	PrimaryGeneratedColumn,
+} from "typeorm";
 
 @Entity({ name: "threads" })
-@Tree("nested-set")
 export class Thread {
 	@ApiProperty()
 	@PrimaryGeneratedColumn()
@@ -14,11 +22,16 @@ export class Thread {
 	message: string;
 
 	@Exclude()
-	@TreeParent()
+	@ManyToOne(() => Thread, (thread) => thread.children, { nullable: true })
+	@JoinColumn({ name: "parent_id" })
 	parent: Thread | undefined | null;
 
 	@Exclude()
-	@TreeChildren()
+	@Column({ name: "parent_id", nullable: true })
+	parentId: number | undefined | null;
+
+	@Exclude()
+	@OneToMany(() => Thread, (thread) => thread.parent)
 	children: Thread[];
 
 	@Expose()
@@ -28,7 +41,7 @@ export class Thread {
 	}
 
 	@Exclude()
-	@Column({ name: "created_at", default: () => "CURRENT_TIMESTAMP" })
+	@CreateDateColumn({ name: "created_at" })
 	createdAt: Date;
 
 	@Expose()
@@ -36,6 +49,10 @@ export class Thread {
 	get timestamp(): number {
 		return this.createdAt.getTime();
 	}
+
+	@Exclude()
+	@DeleteDateColumn({ name: "deleted_at" })
+	deletedAt: Date | null;
 
 	constructor(from: Partial<Thread>) {
 		Object.assign(this, from);
