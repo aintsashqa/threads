@@ -1,13 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, Length, Min } from "class-validator";
+import { IsNotEmpty, IsOptional, MaxLength } from "class-validator";
+import { THREAD_MESSAGE_MAX_LENGTH } from "../thread.contstants";
 
 export class CreateThreadDto {
 	@ApiProperty()
-	@Length(1, 500)
+	@MaxLength(THREAD_MESSAGE_MAX_LENGTH)
+	@IsNotEmpty()
 	readonly message: string;
 
 	@ApiPropertyOptional({ type: Number, nullable: true })
-	@Min(1)
 	@IsOptional()
 	readonly parentId: number | undefined | null;
 }
