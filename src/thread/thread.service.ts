@@ -12,7 +12,15 @@ export class ThreadService {
 	) {}
 
 	async create(dto: CreateThreadDto): Promise<CreatedThreadDto> {
-		const parent = await this.threadsRepository.findOneBy({ id: dto.parentId ?? -1 });
+		let parent: Thread | null = null;
+
+		if (dto.parentId) {
+			parent = await this.threadsRepository.findOneBy({ id: dto.parentId });
+			if (!parent) {
+				throw new NotFoundException();
+			}
+		}
+
 		const thread = parent ? parent.reply(dto.message) : new Thread(dto);
 		await this.entityManager.save(thread);
 

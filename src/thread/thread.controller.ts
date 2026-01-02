@@ -30,6 +30,7 @@ export class ThreadController {
 	@HttpCode(HttpStatus.CREATED)
 	@ApiCreatedResponse({ type: CreatedThreadDto })
 	@ApiBadRequestResponse({ description: "Bad request" })
+	@ApiNotFoundResponse({ description: "Not found" })
 	async create(@Body() dto: CreateThreadDto): Promise<CreatedThreadDto> {
 		return this.threadService.create(dto);
 	}
