@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { EntityManager, IsNull, Repository } from "typeorm";
+import { EntityManager, In, IsNull, Repository } from "typeorm";
+import { THREAD_LIFETIME } from "./thread.contstants";
 import { Thread } from "./entities/thread.entity";
 import { CreatedThreadDto, CreateThreadDto } from "./dto";
 
@@ -38,5 +39,43 @@ export class ThreadService {
 		}
 
 		return thread;
+	}
+
+	async cleanupExpired(): Promise<void> {
+		const threads = await this.threadsRepository.findBy({ parentId: IsNull() });
+
+		for (const thread of threads) {
+			const children = await this.findByParentInDepths(thread.id);
+			if (children.length === 0) {
+				if (thread.timestamp < Date.now() - THREAD_LIFETIME) {
+					await this.threadsRepository.softDelete({ id: thread.id });
+				}
+
+				continue;
+			}
+
+			const hasAlive = children.some((child) => child.timestamp > Date.now() - THREAD_LIFETIME);
+			if (hasAlive) {
+				continue;
+			}
+
+			const threadIds = [...children.map((child) => child.id), thread.id];
+			await this.threadsRepository.softDelete({ id: In(threadIds) });
+		}
+	}
+
+	private async findByParentInDepths(parentId: number): Promise<Thread[]> {
+		const threads = await this.threadsRepository.findBy({ parentId });
+		if (threads.length === 0) {
+			return [];
+		}
+
+		const result: Thread[] = [];
+		for (const thread of threads) {
+			const children = await this.findByParentInDepths(thread.id);
+			result.push(...children, thread);
+		}
+
+		return result;
 	}
 }
