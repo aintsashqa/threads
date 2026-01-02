@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Exclude, Expose } from "class-transformer";
+import { File as FileEntity } from "src/file/entities/file.entity";
 import {
 	Column,
 	CreateDateColumn,
@@ -39,6 +40,13 @@ export class Thread {
 	get replies(): number[] {
 		return this.children.map((child) => child.id);
 	}
+
+	@Exclude()
+	@OneToMany(() => FileEntity, (file) => file.thread)
+	files: FileEntity[];
+
+	@ApiProperty({ type: [String] })
+	fileUrls: string[];
 
 	@Exclude()
 	@CreateDateColumn({ name: "created_at" })

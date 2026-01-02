@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { EntityManager, In, IsNull, Repository } from "typeorm";
-import { THREAD_LIFETIME } from "./thread.contstants";
+import { REMOVED_THREADS_EVENT, THREAD_LIFETIME } from "./thread.contstants";
 import { Thread } from "./entities/thread.entity";
 import { CreatedThreadDto, CreateThreadDto } from "./dto";
 
@@ -10,6 +11,7 @@ export class ThreadService {
 	constructor(
 		private readonly entityManager: EntityManager,
 		@InjectRepository(Thread) private readonly threadsRepository: Repository<Thread>,
+		private readonly eventEmitter: EventEmitter2,
 	) {}
 
 	async create(dto: CreateThreadDto): Promise<CreatedThreadDto> {
@@ -29,11 +31,17 @@ export class ThreadService {
 	}
 
 	async findAll(): Promise<Thread[]> {
-		return this.threadsRepository.find({ where: { parentId: IsNull() }, relations: { children: true } });
+		return await this.threadsRepository.find({
+			where: { parentId: IsNull() },
+			relations: { children: true, files: true },
+		});
 	}
 
 	async findOneById(id: number): Promise<Thread> {
-		const thread = await this.threadsRepository.findOne({ where: { id }, relations: { children: true } });
+		const thread = await this.threadsRepository.findOne({
+			where: { id },
+			relations: { children: true, files: true },
+		});
 		if (!thread) {
 			throw new NotFoundException();
 		}
@@ -49,6 +57,7 @@ export class ThreadService {
 			if (children.length === 0) {
 				if (thread.timestamp < Date.now() - THREAD_LIFETIME) {
 					await this.threadsRepository.softDelete({ id: thread.id });
+					await this.eventEmitter.emitAsync(REMOVED_THREADS_EVENT, { threadIds: [thread.id] });
 				}
 
 				continue;
@@ -61,6 +70,7 @@ export class ThreadService {
 
 			const threadIds = [...children.map((child) => child.id), thread.id];
 			await this.threadsRepository.softDelete({ id: In(threadIds) });
+			await this.eventEmitter.emitAsync(REMOVED_THREADS_EVENT, { threadIds });
 		}
 	}
 
